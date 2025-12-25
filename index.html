@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Chess vs AI</title>
+<title>Chess vs Smart AI</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Chessboard GUI (modern fork) -->
+<!-- Chessboard GUI -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessboard-element@1.6.0/dist/chessboard-element.css">
 <script src="https://cdn.jsdelivr.net/npm/chessboard-element@1.6.0/dist/chessboard-element.js"></script>
 
@@ -55,7 +55,7 @@ button:hover {
 </head>
 <body>
 
-<h1>Chess vs AI</h1>
+<h1>Chess vs Smart AI</h1>
 <chess-board id="board" draggable-pieces></chess-board>
 <button onclick="resetGame()">Restart</button>
 <div id="status" style="margin-top: 10px;"></div>
@@ -64,6 +64,7 @@ button:hover {
 const boardEl = document.getElementById('board');
 const statusEl = document.getElementById('status');
 const game = new Chess();
+const AI_DEPTH = 2; // Depth 2 for reasonable performance in browser
 
 function updateStatus() {
     let status = '';
@@ -80,7 +81,7 @@ function updateStatus() {
     statusEl.textContent = status;
 }
 
-// Human makes move
+// Human move
 boardEl.addEventListener('piece-drop', (e) => {
     const move = game.move({from: e.detail.from, to: e.detail.to, promotion: 'q'});
     if (move === null) {
@@ -88,20 +89,73 @@ boardEl.addEventListener('piece-drop', (e) => {
         return;
     }
     updateStatus();
-    setTimeout(aiMove, 300);
+    setTimeout(aiMove, 200);
 });
 
-// AI move
+// AI move using simple minimax
 function aiMove() {
     if (game.game_over()) return;
-    const moves = game.moves();
-    const move = moves[Math.floor(Math.random() * moves.length)]; // random AI
-    game.move(move);
+    const bestMove = minimaxRoot(AI_DEPTH, game, true);
+    game.move(bestMove);
     boardEl.setPosition(game.fen());
     updateStatus();
 }
 
-// Reset game
+// Minimax root function
+function minimaxRoot(depth, game, isMaximisingPlayer) {
+    const moves = game.moves();
+    let bestMove = null;
+    let bestValue = -Infinity;
+
+    for (let i = 0; i < moves.length; i++) {
+        game.move(moves[i]);
+        const boardValue = minimax(depth - 1, game, !isMaximisingPlayer);
+        game.undo();
+        if (boardValue > bestValue) {
+            bestValue = boardValue;
+            bestMove = moves[i];
+        }
+    }
+    return bestMove;
+}
+
+// Minimax function
+function minimax(depth, game, isMaximisingPlayer) {
+    if (depth === 0 || game.game_over()) {
+        return evaluateBoard(game.board());
+    }
+
+    const moves = game.moves();
+    let bestValue = isMaximisingPlayer ? -Infinity : Infinity;
+
+    for (let i = 0; i < moves.length; i++) {
+        game.move(moves[i]);
+        const value = minimax(depth - 1, game, !isMaximisingPlayer);
+        game.undo();
+        if (isMaximisingPlayer) {
+            bestValue = Math.max(bestValue, value);
+        } else {
+            bestValue = Math.min(bestValue, value);
+        }
+    }
+    return bestValue;
+}
+
+// Board evaluation function
+function evaluateBoard(board) {
+    const pieceValues = {p: 10, n: 30, b: 30, r: 50, q: 90, k: 900};
+    let value = 0;
+    for (let row of board) {
+        for (let piece of row) {
+            if (piece === null) continue;
+            let sign = piece.color === 'b' ? 1 : -1; // AI is black
+            value += sign * pieceValues[piece.type];
+        }
+    }
+    return value;
+}
+
+// Reset
 function resetGame() {
     game.reset();
     boardEl.setPosition(game.fen());
