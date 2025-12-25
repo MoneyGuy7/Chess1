@@ -5,11 +5,11 @@
 <title>Chess vs Smart AI</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Chessboard GUI -->
+<!-- Modern chessboard -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessboard-element@1.6.0/dist/chessboard-element.css">
 <script src="https://cdn.jsdelivr.net/npm/chessboard-element@1.6.0/dist/chessboard-element.js"></script>
 
-<!-- Chess engine -->
+<!-- Chess rules engine -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0/chess.min.js"></script>
 
 <style>
@@ -18,11 +18,11 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    flex-direction: column;
     height: 100vh;
     margin: 0;
-    color: white;
     font-family: 'Segoe UI', sans-serif;
-    flex-direction: column;
+    color: white;
 }
 
 h1 {
@@ -31,7 +31,7 @@ h1 {
 }
 
 chess-board {
-    width: 400px;
+    width: 480px;
     margin-bottom: 15px;
     border-radius: 10px;
     box-shadow: 0 0 20px rgba(0,255,255,0.3);
@@ -51,57 +51,57 @@ button {
 button:hover {
     background: #00cccc;
 }
+
+#status {
+    margin-top: 10px;
+}
 </style>
 </head>
 <body>
 
-<h1>Chess vs Smart AI</h1>
+<h1>Chess vs AI</h1>
 <chess-board id="board" draggable-pieces></chess-board>
 <button onclick="resetGame()">Restart</button>
-<div id="status" style="margin-top: 10px;"></div>
+<div id="status"></div>
 
 <script>
 const boardEl = document.getElementById('board');
 const statusEl = document.getElementById('status');
 const game = new Chess();
-const AI_DEPTH = 2; // Depth 2 for reasonable performance in browser
+const AI_DEPTH = 3; // Depth 3 = stronger AI
 
+// Display status
 function updateStatus() {
-    let status = '';
     if (game.in_checkmate()) {
-        status = 'Game over: ' + (game.turn() === 'w' ? 'Black wins' : 'White wins');
+        statusEl.textContent = 'Game over: ' + (game.turn() === 'w' ? 'Black wins' : 'White wins');
     } else if (game.in_draw() || game.in_stalemate() || game.in_threefold_repetition()) {
-        status = 'Draw!';
+        statusEl.textContent = 'Draw!';
     } else {
-        status = 'Turn: ' + (game.turn() === 'w' ? 'White (You)' : 'Black (AI)');
-        if (game.in_check()) {
-            status += ' — Check!';
-        }
+        statusEl.textContent = 'Turn: ' + (game.turn() === 'w' ? 'White (You)' : 'Black (AI)') + (game.in_check() ? ' — Check!' : '');
     }
-    statusEl.textContent = status;
 }
 
 // Human move
 boardEl.addEventListener('piece-drop', (e) => {
     const move = game.move({from: e.detail.from, to: e.detail.to, promotion: 'q'});
     if (move === null) {
-        boardEl.setPosition(game.fen()); // illegal move
+        boardEl.setPosition(game.fen());
         return;
     }
     updateStatus();
-    setTimeout(aiMove, 200);
+    if (!game.game_over()) setTimeout(aiMove, 200);
 });
 
-// AI move using simple minimax
+// AI move using minimax
 function aiMove() {
     if (game.game_over()) return;
-    const bestMove = minimaxRoot(AI_DEPTH, game, true);
-    game.move(bestMove);
+    const move = minimaxRoot(AI_DEPTH, game, true);
+    game.move(move);
     boardEl.setPosition(game.fen());
     updateStatus();
 }
 
-// Minimax root function
+// Minimax root
 function minimaxRoot(depth, game, isMaximisingPlayer) {
     const moves = game.moves();
     let bestMove = null;
@@ -109,10 +109,10 @@ function minimaxRoot(depth, game, isMaximisingPlayer) {
 
     for (let i = 0; i < moves.length; i++) {
         game.move(moves[i]);
-        const boardValue = minimax(depth - 1, game, !isMaximisingPlayer);
+        const value = minimax(depth - 1, game, false);
         game.undo();
-        if (boardValue > bestValue) {
-            bestValue = boardValue;
+        if (value > bestValue) {
+            bestValue = value;
             bestMove = moves[i];
         }
     }
@@ -141,7 +141,7 @@ function minimax(depth, game, isMaximisingPlayer) {
     return bestValue;
 }
 
-// Board evaluation function
+// Simple board evaluation function
 function evaluateBoard(board) {
     const pieceValues = {p: 10, n: 30, b: 30, r: 50, q: 90, k: 900};
     let value = 0;
@@ -155,7 +155,7 @@ function evaluateBoard(board) {
     return value;
 }
 
-// Reset
+// Reset game
 function resetGame() {
     game.reset();
     boardEl.setPosition(game.fen());
