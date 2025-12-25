@@ -5,10 +5,9 @@
 <title>Chess vs AI</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Chessboard GUI -->
-<link rel="stylesheet" href="https://unpkg.com/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://unpkg.com/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+<!-- Chessboard GUI (modern fork) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessboard-element@1.6.0/dist/chessboard-element.css">
+<script src="https://cdn.jsdelivr.net/npm/chessboard-element@1.6.0/dist/chessboard-element.js"></script>
 
 <!-- Chess engine -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0/chess.min.js"></script>
@@ -31,11 +30,11 @@ h1 {
     color: #00ffff;
 }
 
-#board {
+chess-board {
     width: 400px;
     margin-bottom: 15px;
-    box-shadow: 0 0 20px rgba(0,255,255,0.3);
     border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0,255,255,0.3);
 }
 
 button {
@@ -57,44 +56,17 @@ button:hover {
 <body>
 
 <h1>Chess vs AI</h1>
-<div id="board"></div>
+<chess-board id="board" draggable-pieces></chess-board>
 <button onclick="resetGame()">Restart</button>
 <div id="status" style="margin-top: 10px;"></div>
 
 <script>
-var board = null;
-var game = new Chess();
-var statusEl = document.getElementById('status');
-
-function onDragStart(source, piece, position, orientation) {
-    if (game.game_over()) return false;
-    // Only allow human (white) to move
-    if (piece.search(/^b/) !== -1) return false;
-}
-
-function onDrop(source, target) {
-    var move = game.move({from: source, to: target, promotion: 'q'});
-    if (move === null) return 'snapback';
-    updateStatus();
-    window.setTimeout(makeAiMove, 250);
-}
-
-function makeAiMove() {
-    if (game.game_over()) return;
-    var moves = game.moves();
-    // Simple AI: random legal move
-    var move = moves[Math.floor(Math.random() * moves.length)];
-    game.move(move);
-    board.position(game.fen());
-    updateStatus();
-}
-
-function onSnapEnd() {
-    board.position(game.fen());
-}
+const boardEl = document.getElementById('board');
+const statusEl = document.getElementById('status');
+const game = new Chess();
 
 function updateStatus() {
-    var status = '';
+    let status = '';
     if (game.in_checkmate()) {
         status = 'Game over: ' + (game.turn() === 'w' ? 'Black wins' : 'White wins');
     } else if (game.in_draw() || game.in_stalemate() || game.in_threefold_repetition()) {
@@ -108,21 +80,36 @@ function updateStatus() {
     statusEl.textContent = status;
 }
 
-function resetGame() {
-    game.reset();
-    board.start();
+// Human makes move
+boardEl.addEventListener('piece-drop', (e) => {
+    const move = game.move({from: e.detail.from, to: e.detail.to, promotion: 'q'});
+    if (move === null) {
+        boardEl.setPosition(game.fen()); // illegal move
+        return;
+    }
+    updateStatus();
+    setTimeout(aiMove, 300);
+});
+
+// AI move
+function aiMove() {
+    if (game.game_over()) return;
+    const moves = game.moves();
+    const move = moves[Math.floor(Math.random() * moves.length)]; // random AI
+    game.move(move);
+    boardEl.setPosition(game.fen());
     updateStatus();
 }
 
-var config = {
-    draggable: true,
-    position: 'start',
-    onDragStart: onDragStart,
-    onDrop: onDrop,
-    onSnapEnd: onSnapEnd
-};
+// Reset game
+function resetGame() {
+    game.reset();
+    boardEl.setPosition(game.fen());
+    updateStatus();
+}
 
-board = Chessboard('board', config);
+// Initialize
+boardEl.setPosition(game.fen());
 updateStatus();
 </script>
 
